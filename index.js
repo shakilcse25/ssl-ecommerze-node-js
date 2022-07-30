@@ -64,7 +64,7 @@ app.get('/ssl-request', async (req, res) => {
     //https://developer.sslcommerz.com/doc/v4/#returned-parameters
 
     if (data?.GatewayPageURL) {
-      return res.status(200).redirect(data?.GatewayPageURL);
+      return res.status(200).json(data?.GatewayPageURL);
     }
     else {
       return res.status(400).json({
