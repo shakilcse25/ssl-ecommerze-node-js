@@ -7,8 +7,18 @@ app.use(bodyParser.json());
 
 const stripe = require('stripe')('sk_test_51LR3w4CVze8v9k3H3RvO8zPKCZu6CKnyvvAvvqMeRCX02xBr8SBMBPw0Snjr1ZrqnVENCSjU2gVDfXVmiSfEEsjE00eO51pNdU');
 
-app.listen(3000, () => {
- console.log("Server running on port 3000");
+app.get('/', (req, res) => {
+  res
+    .status(200)
+    .send('Hello server is running')
+    .end();
+});
+ 
+// Start the server
+const PORT = process.env.PORT || 8080;
+app.listen(PORT, () => {
+  console.log(`App listening on port ${PORT}`);
+  console.log('Press Ctrl+C to quit.');
 });
 
 app.get("/test", (req, res, next) => {
