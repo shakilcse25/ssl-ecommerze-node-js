@@ -2,6 +2,8 @@ const express = require('express');
 const SSLCommerzPayment = require('sslcommerz-lts')
 const bodyParser = require('body-parser')
 const app = express()
+const fs = require('firebase-admin');
+const serviceAccount = require('./firebase.json');
 require('dotenv').config()
 
 // parse application/x-www-form-urlencoded
@@ -22,14 +24,30 @@ app.get('/', async (req, res) => {
   })
 })
 
+fs.initializeApp({
+ credential: fs.credential.cert(serviceAccount)
+});
+
+const db = fs.firestore();
+
+app.get("/trips", async (req, res) => {
+
+	let data = []
+	const querySnapshot = await db.collection("trips").get();
+	querySnapshot.forEach((doc) => {
+		data.push(doc.data());
+	});
+
+  res.status(200).json(data);
+})
+
 app.get('/ssl-request', async (req, res) => {
 
   /** 
   * Create ssl session request 
   */
-
   const data = {
-    total_amount: 100,
+    total_amount: req.query.amount,
     currency: 'BDT',
     tran_id: 'REF123',
     success_url: `${process.env.ROOT}/ssl-payment-success`,
@@ -50,10 +68,7 @@ app.get('/ssl-request', async (req, res) => {
     cus_phone: '01711111111',
     cus_fax: '01711111111',
     multi_card_name: 'mastercard',
-    value_a: 'ref001_A',
-    value_b: 'ref002_B',
-    value_c: 'ref003_C',
-    value_d: 'ref004_D',
+    value_a: req.query.booking_id,
     ipn_url: `${process.env.ROOT}/ssl-payment-notification`,
   };
 
@@ -94,6 +109,17 @@ app.post("/ssl-payment-success", async (req, res) => {
   /** 
   * If payment successful 
   */
+  
+  db.collection('booking').doc(req.body.value_a)
+	.update({status:2})
+	.then(() => {
+		return res.status(200).json(
+			{
+			  data: req.body,
+			  message: 'Payment success and your seat is booked successfully!'
+			}
+		 );
+	});
 
   return res.status(200).json(
     {
