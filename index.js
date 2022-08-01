@@ -5,6 +5,16 @@ const app = express()
 const fs = require('firebase-admin');
 const serviceAccount = require('./firebase.json');
 require('dotenv').config()
+var filesys = require('fs');
+
+var htmlFile;
+
+filesys.readFile('./success.html', function(err, data) {
+    if (err){
+        throw err;
+    }
+    htmlFile = data;
+});
 
 // parse application/x-www-form-urlencoded
 app.use(bodyParser.urlencoded({ extended: false }))
@@ -79,7 +89,7 @@ app.get('/ssl-request', async (req, res) => {
     //https://developer.sslcommerz.com/doc/v4/#returned-parameters
 
     if (data?.GatewayPageURL) {
-      return res.status(200).json(data?.GatewayPageURL);
+      return res.status(200).redirect(data?.GatewayPageURL);
     }
     else {
       return res.status(400).json({
@@ -109,24 +119,14 @@ app.post("/ssl-payment-success", async (req, res) => {
   /** 
   * If payment successful 
   */
-  
-  db.collection('booking').doc(req.body.value_a)
-	.update({status:2})
-	.then(() => {
-		return res.status(200).json(
-			{
-			  data: req.body,
-			  message: 'Payment success and your seat is booked successfully!'
-			}
-		 );
-	});
 
-  return res.status(200).json(
-    {
-      data: req.body,
-      message: 'Payment success'
-    }
-  );
+  
+  db.collection('bookings').doc(req.body.value_a)
+	.update({status:2, transaction_code: req.body.bank_tran_id})
+	.then(() => {
+		res.writeHead(200, {"Content-Type": "text/html"});
+        res.write(htmlFile);
+	});
 })
 
 app.post("/ssl-payment-fail", async (req, res) => {
