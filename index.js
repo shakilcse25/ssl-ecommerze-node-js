@@ -6,6 +6,7 @@ const fs = require('firebase-admin');
 const serviceAccount = require('./firebase.json');
 require('dotenv').config()
 var filesys = require('fs');
+var moment = require('moment');
 
 var htmlFile;
 
@@ -78,7 +79,10 @@ app.get('/ssl-request', async (req, res) => {
     cus_phone: '01711111111',
     cus_fax: '01711111111',
     multi_card_name: 'mastercard',
-    value_a: req.query.booking_id,
+    value_a: req.query.trip_id,
+	value_b: req.query.user_id,
+	value_c: req.query.route_id,
+	value_d: req.query.seats,
     ipn_url: `${process.env.ROOT}/ssl-payment-notification`,
   };
 
@@ -89,7 +93,7 @@ app.get('/ssl-request', async (req, res) => {
     //https://developer.sslcommerz.com/doc/v4/#returned-parameters
 
     if (data?.GatewayPageURL) {
-      return res.status(200).json(data?.GatewayPageURL);
+      return res.status(200).redirect(data?.GatewayPageURL);
     }
     else {
       return res.status(400).json({
@@ -117,16 +121,72 @@ app.post("/ssl-payment-notification", async (req, res) => {
 app.post("/ssl-payment-success", async (req, res) => {
 
   /** 
-  * If payment successful 
+  * If payment successful payloads
+  *value_a: req.query.trip_id,
+  *value_b: req.query.user_id,
+  *value_c: req.query.route_id,
+  *value_d: req.query.seats,
   */
-
   
-  db.collection('bookings').doc(req.body.value_a)
-	.update({status:2, transaction_code: req.body.bank_tran_id})
-	.then(() => {
-		res.writeHead(200, {"Content-Type": "text/html"});
-        res.write(htmlFile);
-	});
+	const querySnapshot = await db.collection("trips").doc(req.body.value_a).get();
+	let trip = querySnapshot.data();
+	trip['id'] = querySnapshot.id;
+
+	let checkSeats = false;
+	let checkFlag = false;
+	let alreadyBooked = '';
+	let requestSeat = req.body.value_d.split('_').map( Number );
+	let processSeat = [];
+	let updatedSeat = [];
+
+	for (let s of trip.seats) {
+	  checkSeats = requestSeat.find(rs_date_time => (rs_date_time == s.date_time && s.booked));
+	  if(checkSeats){
+		checkFlag = true;
+		alreadyBooked += ` ${s.name}`;
+	  }
+	  if(!checkFlag && requestSeat.includes(s.date_time)){
+		  s.booked = true;
+		  s.user = req.body.value_b;
+		  updatedSeat.push(s);
+		  processSeat.push({name: s.name, date_time: s.date_time});
+	  }else if(!checkFlag){
+		  updatedSeat.push(s);
+	  }
+	}
+	let route = trip.routes.find(r => r.id == req.body.value_c);
+
+	if(checkFlag){
+		res.writeHead(200, {"Content-Type": "text/plain"});
+		res.write(`You are late! Someone has booked seat(s) ${alreadyBooked} recently! Press close button and book available seats.` );
+		res.end();
+	}else if(route){
+		const formData = {
+			user_id : req.body.value_b,
+			transaction_code: req.body.bank_tran_id,
+			trip_id: trip.id,
+			bus_name: trip.bus_name,
+			trip_date: trip.date,
+			trip_time: trip.start_time,
+			route: route,
+			fares: req.body.amount,
+			seats: processSeat,
+			status: 2,
+			booked_date: moment().format('YYYY-MM-DD'),
+			booked_time: moment().format('hh:mm A')
+		}
+		db.collection('bookings')
+		  .add(formData)
+		  .then((docRef) => {
+			  db.collection('trips').doc(trip.id)
+				.update({seats: updatedSeat})
+				.then(() => {
+					res.writeHead(200, {"Content-Type": "text/html"});
+					res.write(htmlFile);
+				});
+		  });
+	}
+  
 })
 
 app.post("/ssl-payment-fail", async (req, res) => {
