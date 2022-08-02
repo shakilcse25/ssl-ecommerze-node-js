@@ -6,7 +6,7 @@ const fs = require('firebase-admin');
 const serviceAccount = require('./firebase.json');
 require('dotenv').config()
 var filesys = require('fs');
-var moment = require('moment');
+var moment = require('moment-timezone');
 
 var htmlFile;
 
