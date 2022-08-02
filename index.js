@@ -161,6 +161,7 @@ app.post("/ssl-payment-success", async (req, res) => {
 		res.write(`You are late! Someone has booked seat(s) ${alreadyBooked} recently! Press close button and book available seats.` );
 		res.end();
 	}else if(route){
+		var time = moment.tz(new Date(), "Asia/Dhaka");
 		const formData = {
 			user_id : req.body.value_b,
 			transaction_code: req.body.bank_tran_id,
@@ -172,8 +173,8 @@ app.post("/ssl-payment-success", async (req, res) => {
 			fares: req.body.amount,
 			seats: processSeat,
 			status: 2,
-			booked_date: moment().format('YYYY-MM-DD'),
-			booked_time: moment().format('hh:mm A')
+			booked_date: time.format('YYYY-MM-DD'),
+			booked_time: time.format('hh:mm A')
 		}
 		db.collection('bookings')
 		  .add(formData)
