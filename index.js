@@ -174,7 +174,8 @@ app.post("/ssl-payment-success", async (req, res) => {
 			seats: processSeat,
 			status: 2,
 			booked_date: time.format('YYYY-MM-DD'),
-			booked_time: time.format('hh:mm A')
+			booked_time: time.format('hh:mm A'),
+			date_time: new Date().getTime()
 		}
 		db.collection('bookings')
 		  .add(formData)
